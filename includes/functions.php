@@ -16,40 +16,71 @@ use Rkv\Locomotive\Batches\Comments;
  * Register a new batch process.
  *
  * @param  array $args Arguments for the batch process.
- * @throws Exception Only post & user are accepted $args['type'].
+ * @throws Exception If the batch processor doesn't extend the Batch abstract class.
  */
 function register_batch_process( $args ) {
 	if ( empty( $args['type'] ) ) {
 		$args['type'] = '';
 	}
 
-	switch ( $args['type'] ) {
+	$batch_processor = get_default_batch_processor_for_type( $args['type'] );
+
+	/**
+	 * Filter the batch processor to be used with the batch process being registered.
+	 *
+	 * @param Batch  $batch_processor The batch processor to use, defaults to null.
+	 * @param string $type            Type of data for this batch process.
+	 * @param array  $args            Arguments for the batch process.
+	 */
+	$batch_processor = apply_filters( 'loco_register_batch_process_processor', $batch_processor, $args['type'], $args );
+
+	if ( empty( $batch_processor ) ) {
+		throw new Exception( sprintf(
+			__( 'Batch processor not found for type "%1$s"', 'locomotive' ),
+			$args['type']
+		) );
+	}
+
+	if ( ! is_subclass_of( $batch_processor, 'Rkv\Locomotive\Abstracts\Batch' ) ) {
+		throw new Exception( __( 'Batch processor must extend the Batch abstract class.', 'locomotive' ) );
+	}
+
+	$batch_processor->register( $args );
+}
+
+/**
+ * Returns the default batch processor used for a specific type of data.
+ *
+ * @param string $type Type of data to get a batch processor for.
+ *
+ * @return Batch|null The batch processor to use for the specified type, null if not a default type.
+ */
+function get_default_batch_processor_for_type( $type ) {
+	switch ( $type ) {
 		case 'post':
-			$batch_process = new Posts();
-			$batch_process->register( $args );
+			return new Posts();
 			break;
 
 		case 'user':
-			$batch_process = new Users();
-			$batch_process->register( $args );
+			return new Users();
 			break;
+
 		case 'site':
 			if ( is_multisite() ) {
-				$batch_process = new Sites();
-				$batch_process->register( $args );
+				return new Sites();
 			}
 			break;
 
 		case 'term':
-			$batch_process = new Terms();
-			$batch_process->register( $args );
+			return new Terms();
 			break;
 
 		case 'comment':
-			$batch_process = new Comments();
-			$batch_process->register( $args );
+			return new Comments();
 			break;
 	}
+
+	return null;
 }
 
 /**

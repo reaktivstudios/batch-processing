@@ -3,6 +3,8 @@
 namespace Rkv\Locomotive\Tests;
 
 use WP_UnitTestCase;
+use Exception;
+use Rkv\Locomotive\Abstracts\Batch;
 use Rkv\Locomotive\Batches\Posts;
 use Rkv\Locomotive\Loader;
 
@@ -38,6 +40,67 @@ class BatchFunctionTest extends WP_UnitTestCase {
 
 		$all_batches = locomotive_get_all_batches();
 		$this->assertCount( 2, $all_batches );
+	}
+
+	/**
+	 * Test that an Exception is thrown if a Batch Processor isn't found for a specified type.
+	 */
+	public function test_register_batch_process_throws_exception_if_no_batch_processor_for_type() {
+		$this->setExpectedException( Exception::class );
+
+		register_batch_process( array(
+			'name'     => 'My Failed Test Batch process',
+			'type'     => 'foo',
+			'callback' => __NAMESPACE__ . '\\my_callback_function',
+		) );
+	}
+
+	/**
+	 * Test that the batch processor filter works properly.
+	 */
+	public function test_batch_processor_filter_works() {
+		// Create a mock Batch object, set the expectation that register will be called
+		$mock_batch_processor = $this->getMockBuilder( Batch::class )->getMock();
+		$mock_batch_processor->expects( $this->once() )
+			->method( 'register' );
+
+		add_filter( 'loco_register_batch_process_processor', function ( $batch_processor, $type ) use ( $mock_batch_processor ) {
+			if ( 'foo' !== $type ) {
+				return $batch_processor;
+			}
+
+			return $mock_batch_processor;
+		}, 10, 2 );
+
+		register_batch_process( array(
+			'name'     => 'My Test Batch process',
+			'type'     => 'foo',
+			'callback' => __NAMESPACE__ . '\\my_callback_function',
+		) );
+	}
+
+	/**
+	 * Test that an Exception is thrown if a non-Batch Batch Processor is set in the filter.
+	 */
+	public function test_register_batch_process_throws_exception_if_batch_processor_is_not_a_batch() {
+		// Create a mock Batch object, set the expectation that register will be called
+		$mock_batch_processor = $this->getMockBuilder( \stdClass::class )->getMock();
+
+		add_filter( 'loco_register_batch_process_processor', function ( $batch_processor, $type ) use ( $mock_batch_processor ) {
+			if ( 'foo' !== $type ) {
+				return $batch_processor;
+			}
+
+			return $mock_batch_processor;
+		}, 10, 2 );
+
+		$this->setExpectedException( Exception::class );
+
+		register_batch_process( array(
+			'name'     => 'My Test Batch process',
+			'type'     => 'foo',
+			'callback' => __NAMESPACE__ . '\\my_callback_function',
+		) );
 	}
 
 	/**
@@ -125,6 +188,13 @@ class BatchFunctionTest extends WP_UnitTestCase {
 	 */
 	public function test_elapsed_time() {
 		$this->assertInternalType( 'string', locomotive_time_ago( 1472852621 ) );
+	}
+
+	/**
+	 * Test the get_default_batch_processor_for_type function returns null if a non default type is provided.
+	 */
+	public function test_get_default_batch_processor_for_type_returns_null_for_non_default_type() {
+		$this->assertNull( get_default_batch_processor_for_type( 'foo' ) );
 	}
 
 	/**
