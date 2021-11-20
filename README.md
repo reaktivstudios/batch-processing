@@ -45,6 +45,30 @@ function my_callback_function( $result ) {
 }
 ```
 
+#### Custom Processor
+Using a custom processor requires using the `loco_register_batch_processor` filter to register the processor type and a processor class that extends the `Rkv\Locomotive\Abstracts\Batch` class.
+
+Register your custom callback to be used when the type matches your process type:
+```
+add_filter( 'loco_register_batch_processor', function( $return_value, $type, $args){
+    if( 'hiroy' == $type' ){
+        // Return name of class, not class instance
+        return 'HiRoyProcessor';
+    }elseif( 'hishawn' == $type ){
+        // Return name of class, not class instance
+        return 'HiShawnProcessor';
+    }else{
+        // No custom type matched
+        // Return filter default to allow for other custom types or defaults
+        return $return_value;
+    }
+    
+    
+}, 10, 3 );
+
+
+
+
 #### Start Batch Process
 ![Locomotive Menu](screenshot.gif?raw=true "Locomotive Menu")
 

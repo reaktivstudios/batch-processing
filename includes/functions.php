@@ -23,6 +23,25 @@ function register_batch_process( $args ) {
 		$args['type'] = '';
 	}
 
+	/**
+	 * Filter to register custom batch process types.
+	 *
+	 * Return the name (fully namespaced) of a your batch processor class NOT an object instance
+	 *
+	 * @param  string $batch_processor Batch processor class, must extend Rkv\Locomotive\Abstracts\Batch
+	 * @param string $type Type of processor
+	 * @param array $args Args passed to register_batch_process
+	 */
+	$batch_processor = apply_filters( 'loco_register_batch_processor', null, $args['type'], $args );
+
+	// Check if filter returned a valid processor.
+	// If so, use that, else continue to defaults.
+	if ( is_string( $batch_processor ) && is_subclass_of( $batch_processor, 'Rkv\Locomotive\Abstracts\Batch' ) ) {
+		$batch_process = new $batch_processor();
+		$batch_process->register( $args );
+		return;
+	}
+
 	switch ( $args['type'] ) {
 		case 'post':
 			$batch_process = new Posts();
